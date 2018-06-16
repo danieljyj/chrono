@@ -54,14 +54,14 @@ std::string tire_filename("hmmwv/tire/HMMWV_ANCFTire.json");
 ////std::string tire_filename("hmmwv/tire/HMMWV_RigidMeshTire_Coarse.json");
 
 // Terrain settling time
-double time_settling = 0.2;
+double time_settling = 0.4;
 
 // Terrain granular material parameters
-double particle_radius = 0.006;
+double particle_radius = 0.01;
 double particle_density = 2500;
 
 // Number of layers
-int num_layers = 6;
+int num_layers = 16;
 
 // Driver type
 //   DATA_DRIVER:  throttle, steering, and braking inputs provided at time points
@@ -177,7 +177,7 @@ int main(int argc, char** argv) {
     int nthreads_tire = 2;
     int nthreads_terrain = 2;
     double sim_time = 10;
-    double coh_pressure = 8e4;
+    double coh_pressure = 100e3;
     double init_fwd_vel = 0;
     double init_wheel_omega = 0;
     bool use_checkpoint = false;

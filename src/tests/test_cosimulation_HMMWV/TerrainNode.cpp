@@ -387,6 +387,7 @@ void TerrainNode::Construct() {
 
         for (int il = 0; il < m_num_layers; il++) {
             gen.createObjectsBox(utils::POISSON_DISK, 2 * r, center, hdims);
+            cout << m_prefix << " level: " << il << " points: " << gen.getTotalNumBodies() << endl;
             center.z() += 2 * r;
         }
 
