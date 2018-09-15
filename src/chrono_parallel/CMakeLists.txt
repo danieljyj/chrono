@@ -13,6 +13,7 @@ option(ENABLE_MODULE_PARALLEL "Enable the Chrono Parallel module" OFF)
 
 if(NOT ENABLE_MODULE_PARALLEL)
   mark_as_advanced(FORCE BLAZE_DIR)
+  mark_as_advanced(FORCE BOOST_ROOT)
   mark_as_advanced(FORCE USE_PARALLEL_DOUBLE)
   mark_as_advanced(FORCE USE_PARALLEL_SIMD)
   
@@ -52,7 +53,7 @@ set(CH_PARALLEL_C_FLAGS "")
 
 find_package(CUDA)
 
-cmake_dependent_option(USE_PARALLEL_CUDA "Enable CUDA support in Chrono::Parallel" ON "CUDA_FOUND" OFF)
+cmake_dependent_option(USE_PARALLEL_CUDA "Enable CUDA support in Chrono::Parallel" OFF "CUDA_FOUND" OFF)
 
 
 IF(USE_PARALLEL_CUDA)
@@ -101,42 +102,71 @@ ENDIF()
 
 # ----- Thrust library -----
 
+message(STATUS "Searching for Thrust...")
 find_package(Thrust)
+
+if(NOT THRUST_INCLUDE_DIR)
+  message("Thrust not found.")
+  return()
+else()
+  message(STATUS "Thrust include directory: ${THRUST_INCLUDE_DIR}")
+endif()
 
 # ----- Blaze library -----
 
-IF(${CMAKE_SYSTEM_NAME} MATCHES "Windows")
-  SET(BLAZE_DIR ""  CACHE PATH   "Where is Blaze located?")
-ELSEIF(${CMAKE_SYSTEM_NAME} MATCHES "Linux")
-  FIND_PATH(BLAZE_DIR NAMES blaze/Blaze.h PATHS "/usr/include" "/usr/local/include")
-ELSEIF(${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
-  FIND_PATH(BLAZE_DIR NAMES blaze/Blaze.h PATHS "/usr/include" "/usr/local/include")
-ENDIF()
+message(STATUS "Searching for Blaze...")
+if(${CMAKE_SYSTEM_NAME} MATCHES "Windows")
+  set(BLAZE_DIR ""  CACHE PATH   "Where is Blaze located?")
+elseif(${CMAKE_SYSTEM_NAME} MATCHES "Linux")
+  find_path(BLAZE_DIR NAMES blaze/Blaze.h PATHS "/usr/include" "/usr/local/include")
+elseif(${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
+  find_path(BLAZE_DIR NAMES blaze/Blaze.h PATHS "/usr/include" "/usr/local/include")
+endif()
+
+file(READ ${BLAZE_DIR}/blaze/system/Version.h BLAZE_VERSION_FILE)
+string(REGEX MATCH "#define BLAZE_MAJOR_VERSION ([0-9]*)" _BLAZE_MAJOR_VERSION ${BLAZE_VERSION_FILE})
+set(BLAZE_MAJOR_VERSION ${CMAKE_MATCH_1})
+string(REGEX MATCH "#define BLAZE_MINOR_VERSION ([0-9]*)" _BLAZE_MINOR_VERSION ${BLAZE_VERSION_FILE})
+set(BLAZE_MINOR_VERSION ${CMAKE_MATCH_1})
+set(BLAZE_VERSION "${BLAZE_MAJOR_VERSION}.${BLAZE_MINOR_VERSION}")
+
+if(BLAZE_VERSION STREQUAL ".")
+  message("Blaze not found.")
+  mark_as_advanced(FORCE BOOST_ROOT)
+  return()
+else()
+  message(STATUS "Blaze directory: ${BLAZE_DIR}")
+  message(STATUS "Blaze version: ${BLAZE_VERSION}")
+endif()
 
 # ----- Configure Blaze and Thrust -----
 
-IF(ENABLE_OPENMP)
+if(ENABLE_OPENMP)
   add_definitions(-DTHRUST_DEVICE_SYSTEM=THRUST_DEVICE_SYSTEM_OMP)
   add_definitions(-DTHRUST_HOST_SYSTEM=THRUST_HOST_SYSTEM_OMP)
-ELSEIF(ENABLE_TBB)
+elseif(ENABLE_TBB)
   add_definitions(-DBLAZE_USE_CPP_THREADS)
   add_definitions(-DTHRUST_DEVICE_SYSTEM=THRUST_DEVICE_SYSTEM_TBB)
   add_definitions(-DTHRUST_HOST_SYSTEM=THRUST_HOST_SYSTEM_TBB)
-ELSE()
+else()
   add_definitions(-DBLAZE_USE_CPP_THREADS)
   add_definitions(-DTHRUST_DEVICE_SYSTEM=THRUST_DEVICE_SYSTEM_CPP)
   add_definitions(-DTHRUST_HOST_SYSTEM=THRUST_HOST_SYSTEM_CPP)
-ENDIF()
+endif()
 
-# ----- BOOST -- required for Blaze -----
+# ----- BOOST -- required for Blaze < 3.4 -----
 
-set(BOOST_ROOT "" CACHE PATH "Where is Boost located?")
-find_package(Boost REQUIRED)
+if(${BLAZE_VERSION} VERSION_LESS "3.4")
+  set(BOOST_ROOT "" CACHE PATH "Where is Boost located?")
+  find_package(Boost REQUIRED)
 
-if (Boost_FOUND)
-  message(STATUS "Boost include dir: ${Boost_INCLUDE_DIRS}")
+  if (Boost_FOUND)
+    message(STATUS "Boost include dir: ${Boost_INCLUDE_DIRS}")
+  else()
+    mark_as_advanced(CLEAR BOOST_ROOT)
+  endif()
 else()
-  mark_as_advanced(CLEAR BOOST_ROOT)
+  mark_as_advanced(FORCE BOOST_ROOT)
 endif()
 
 # ----------------------------------------------------------------------------
